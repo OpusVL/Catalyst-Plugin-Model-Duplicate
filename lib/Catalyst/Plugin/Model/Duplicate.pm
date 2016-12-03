@@ -8,7 +8,7 @@ use MRO::Compat;
 use Safe::Isa;
 
 
-our $VERSION = '0.10';
+our $VERSION = '0.001';
 
 sub model
 {
