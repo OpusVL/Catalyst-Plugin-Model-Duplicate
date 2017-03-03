@@ -7,6 +7,8 @@ use namespace::clean -except => 'meta';
 use MRO::Compat;
 use Safe::Isa;
 
+use v5.14;
+
 
 our $VERSION = '0.001';
 
@@ -15,23 +17,34 @@ sub model
     my ($c, $name, @args) = @_;
     my $appclass = ref($c) || $c;
 
-    if( $name ) {
-        # this module isn't going to deal with regex lookup.
-        unless ( $name->$_isa('Regexp') ) {
-            my ($first, $rest) = $name =~ m/^(\w+)(::.*)*$/;
-            my $replace_with = $c->config->{'Model::Duplicate'}->{$first};
-            if($replace_with)
-            {
-                $c->log->debug("Replacing $name with $replace_with");
-                $name = $replace_with . $rest;
-            }
-        }
-    }
+    $name = _replace_with_aliased($c, $name);
+
     return $c->next::method($name, @args);
 }
 
+sub _replace_with_aliased
+{
+    my ($c, $name) = @_;
+
+    if( $name ) {
+        # this module isn't going to deal with regex lookup.
+        unless ( $name->$_isa('Regexp') ) {
+            my $orig = $name;
+            for my $alias ( keys %{ $c->config->{'Model::Duplicate'} } ) {
+                my $alt = $c->config->{'Model::Duplicate'}->{$alias};
+                if ($name =~ s/^\Q$alias\E/$alt/) {
+                    $c->log->debug("$orig matched $alias; using $name");
+                    return $name;
+                }
+            }
+        }
+    }
+
+    $name;
+}
+
 __PACKAGE__->meta->make_immutable;
-__PACKAGE__;
+1;
 
 
 # ABSTRACT: allow models to be duplicated/aliased
